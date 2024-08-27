@@ -20,9 +20,6 @@ struct Client_Parameters_Main
     int Noise_Threshold;
     int Motion_Threshold;
 
-    std::string param3;
-    // std::string param4;
-
     // Constructor to initialize default values
     Client_Parameters_Main() : Cam_H_Size(800), Cam_V_Size(600),
                                Screen_H_Size(1024), Screen_V_Size(768),
@@ -36,8 +33,39 @@ struct Client_Parameters_Main
 };
 
 
-
 void readParametersFromFile(const std::string &filename, Client_Parameters_Main &params);
+
+
+
+
+
+struct Pi_Parameters_Main
+{
+    std::string p0;
+    std::string i0;  
+
+    std::string p1;
+    std::string i1;    
+
+    std::string p2;
+    std::string i2;    
+
+    std::string p3;
+    std::string i3;    
+
+    std::string p4;
+    std::string i4;    
+
+    // Constructor to initialize default values
+    Pi_Parameters_Main() : p0("5569"), i0("192.168.42.17"),    p1("5570"), i1("192.168.42.32"),   p2("5571"), i2("192.168.42.37"),   p3("5572"), i3("192.168.42.40"),   p4("5573"), i4("192.168.42.45") {}
+};
+
+
+void readPiParametersFromFile(const std::string &filename, Pi_Parameters_Main &params);
+
+
+
+
 
 
 void Sequencer(const bool Image_Motion, const cv::Mat &gray_frame_local);

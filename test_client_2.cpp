@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <string>
 #include <ctime>
+#include <deque>
 
 #include <opencv2/opencv.hpp>
 
@@ -99,6 +100,9 @@ int main(int argc, char *argv[])
 
     /***************************  MY CODE  **************************************/
 
+    std::srand(static_cast<unsigned int>(std::time(nullptr)));
+    int randomValue = std::rand() % 100;
+
     bool camera_good;
     auto loopStartTime = std::chrono::steady_clock::now();
     auto loopEndTime = std::chrono::steady_clock::now();
@@ -111,9 +115,14 @@ int main(int argc, char *argv[])
     bool New_Frame = true;
     int Image_Status = -1;
     long loopCount = 0;
+
     Client_Parameters_Main Client_Params;
 
+    Pi_Parameters_Main Pi_Params;
+
     readParametersFromFile("memory_params2.txt", Client_Params);
+
+    readPiParametersFromFile("pi_params.txt", Pi_Params);
 
     std::string imageFile = "../../images/image.jpg"; // Path to your image file
     cv::Mat img = loadImage(imageFile);
@@ -127,52 +136,48 @@ int main(int argc, char *argv[])
 
     cv::namedWindow("Test Webcam Feed", cv::WINDOW_AUTOSIZE);
 
-    std::cout << " HERR " << getNextFileNameRaw("./raw/") << std::endl;
-    std::cout << " HERR " << getNextFileNameTif("./tif/") << std::endl;
+    std::cout << " HERR " << getNextFileNameRaw("../raw/") << std::endl;
+    std::cout << " HERR " << getNextFileNameTif("../tif/") << std::endl;
 
     /***************************  MY CODE  DONE  ********************************/
 
     float fps = .5; // was30  1.1 seconds per image
     long loop_count = 0;
 
-    std::string connections[5] = {"x", "-i", "127.0.0.1", "-p", "5569"};
+    // std::string connections[5] = {"x", "-i", "127.0.0.1", "-p", "5569"};
 
-    char *argv_file[5];
+    // std::string connections[5] = {"x", "-i", "192.168.42.17", "-p", "5569"};
 
-    std::string strr;
-    strr = "123";
+    // std::string connections[] = {"x", "-i", Pi_Params.i0, "-p", Pi_Params.p0 };
 
-    for (int i = 0; i < 5; i++)
+    std::string connections[] = {"x", "-i", Pi_Params.i0, "-p", Pi_Params.p0, "-i", Pi_Params.i1, "-p", Pi_Params.p1, "-i", Pi_Params.i2, "-p", Pi_Params.p2};
+
+    char *argv_file[13];
+
+    for (int i = 0; i < 13; i++)
     {
         argv_file[i] = new char[connections[i].length() + 1];
         strcpy(argv_file[i], connections[i].c_str());
     }
+    int argc_file = 13; // sizeof(connections);
 
-    for (int i = 0; i < 5; i++)
+    for (int i = 0; i < 13; i++)
     {
-        std::cout << "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX argc " << argv_file[i] << " " << endl;
+        std::cout << "argc : " << argv_file[i] << endl;
     }
+
+    // exit(0);
 
     usage();
 
     auto blocking_send = Comm::NON_BLOCKING;
 
-    list<Comm *> comms = Comm::start_clients(nullptr, 5, argv_file, comm_factory);
+    // list<Comm *> comms = Comm::start_clients(nullptr, 5, argv_file, comm_factory);
+    list<Comm *> comms = Comm::start_clients(nullptr, argc_file, argv_file, comm_factory);
     if (comms.empty())
     {
         return -1;
     }
-
-    // for debugging
-    string files[] = {
-        "../raw/24-06-03-04-30-10.raw",
-        "../raw/24-06-03-04-31-09.raw",
-        "../raw/24-06-03-04-35-02.raw",
-        "../raw/24-06-03-04-32-06.raw",
-        "../raw/24-06-03-04-37-06.raw"};
-
-    auto files_len = sizeof(files) / sizeof(files[0]);
-    // end debugging
 
     for (auto comm : comms)
     {
@@ -185,10 +190,20 @@ int main(int argc, char *argv[])
     auto begin = SteadyClock::now();
     long unack_count = 0;
 
+    ostringstream string_stream_X;
+    string_stream_X.write(reinterpret_cast<const char *>(gray_frame.data), gray_frame.total() * gray_frame.elemSize());
+    deque<string> images_to_send_4 = {string_stream_X.str(), string_stream_X.str(), string_stream_X.str(), string_stream_X.str(), string_stream_X.str()};
+    deque<string> names_to_send_4;
+    for (int i = 0; i < 5; i++)
+    {
+        names_to_send_4.push_back("Screen X" + to_string(i));
+    }
+
     // for (long loop_count = 0; loop_count < ; loop_count++)
     while (true)
     {
 
+        // measure the
         ProcessStartTime = std::chrono::steady_clock::now();
 
         Image_Status = get_camera_frame(cap,
@@ -206,27 +221,30 @@ int main(int argc, char *argv[])
         // sets the timing of the images presented and stores the image if it moved
         Sequencer(Image_Motion, gray_frame);
 
-        list<string> images_to_send_2;
-        list<string> names_to_send_2;
         ostringstream string_stream;
 
-
-        // pull out of loop
-
-        for(int i=0; i<5; i++)
-        {
-            names_to_send_2.push_back("Screen X" + to_string(i) ) ;
-        }
-        
         // store all the images ready to send
         if (Image_Status >= 0)
         {
-            string_stream.write(reinterpret_cast<const char*>(gray_frame.data), gray_frame.total() * gray_frame.elemSize());
-            images_to_send_2.push_back(string_stream.str());
 
-            if (images_to_send_2.size() > 5)
+            randomValue = std::rand() % 100;
+            if (randomValue < 50)
             {
-                images_to_send_2.resize(5);
+                //  convert binary mage to string image
+                string_stream.write(reinterpret_cast<const char *>(gray_frame.data), gray_frame.total() * gray_frame.elemSize());
+            }
+            else
+            {
+                cv::Mat image_read = cv::imread("../tif/000106.tif", cv::IMREAD_UNCHANGED);
+                string_stream.write(reinterpret_cast<const char *>(image_read.data), image_read.total() * image_read.elemSize());
+            }
+
+
+            // put the latest into a a deque so the most recent is always 1st
+            images_to_send_4.push_front(string_stream.str());
+            if (images_to_send_4.size() > 5)
+            {
+                images_to_send_4.resize(5);
             }
 
             // for test viewing
@@ -237,18 +255,16 @@ int main(int argc, char *argv[])
             // }
         }
 
-
-        // now send
+        // now send the images
         if (New_Frame)
         {
+            int ix = 0;
             for (auto &comm : comms)
             {
-                string image_data = images_to_send_2.front();
-                // images_to_send.pop_front();
-                string send_name = names_to_send_2.front();
-                // names_to_send.pop_front();
-
+                string image_data = images_to_send_4[ix]; // = images_to_send_2.front();
+                string send_name = names_to_send_4[ix];   // = names_to_send_2.front();
                 comm->send_image(send_name, image_data);
+                ix++;
             }
         }
 
@@ -257,10 +273,8 @@ int main(int argc, char *argv[])
         ProcessTime = ProcessEndTime - ProcessStartTime;
 
         // if(true)
-        if( ProcessTime.count()  > .005)
-             std::cout << "ProcessTime: " << ProcessTime.count() << std::endl;
-
-
+        if (ProcessTime.count() > .005)
+            std::cout << "ProcessTime: " << ProcessTime.count() << std::endl;
 
         // sets the timing of a frame  1/30th
         loopEndTime = std::chrono::steady_clock::now();
@@ -273,7 +287,6 @@ int main(int argc, char *argv[])
             break;
 
         loop_count++;
-
     }
 
     // give the server time to process the last sends before the connection is dropped
